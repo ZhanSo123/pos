@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f8fafc">
+  <title>Касса — POS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: { colors: { brand: { 50:'#eff6ff',100:'#dbeafe',500:'#3b82f6',600:'#2563eb',700:'#1d4ed8' } }, boxShadow: { soft:'0 10px 35px -15px rgba(15,23,42,.18)' } } } };
+  </script>
+  <style>
+    body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+    input[type=number]{-moz-appearance:textfield}
+    .scrollbar::-webkit-scrollbar{width:6px;height:6px}.scrollbar::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:99px}
+  </style>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-800">
+  <div class="min-h-screen lg:flex">
+    <aside class="bg-slate-950 px-5 py-6 text-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:flex-col">
+      <div class="flex items-center gap-3">
+        <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-500 text-xl font-black">К</div>
+        <div><p class="font-bold tracking-wide">Касса</p><p class="text-xs text-slate-400">POS • рабочее место</p></div>
+      </div>
+      <nav class="mt-8 grid grid-cols-3 gap-2 lg:grid-cols-1" aria-label="Основная навигация">
+        <button data-tab="checkout" class="nav-button flex items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-semibold transition"><span>▣</span> Касса</button>
+        <button data-tab="catalog" class="nav-button flex items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-semibold transition"><span>▤</span> Каталог</button>
+        <button data-tab="history" class="nav-button flex items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-semibold transition"><span>◷</span> Продажи</button>
+      </nav>
+      <div class="mt-auto hidden rounded-2xl border border-slate-800 bg-slate-900 p-4 lg:block">
+        <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Статус системы</p>
+        <div class="mt-3 flex items-center gap-2 text-sm"><span class="h-2 w-2 rounded-full bg-emerald-400"></span> Данные сохранены локально</div>
+      </div>
+    </aside>
+
+    <main class="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-9">
+      <header class="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <div><p id="page-eyebrow" class="mb-1 text-sm font-semibold text-blue-600">Рабочее место</p><h1 id="page-title" class="text-3xl font-bold tracking-tight text-slate-900">Касса</h1><p id="page-description" class="mt-2 text-sm text-slate-500">Добавляйте товары в чек и завершайте продажу.</p></div>
+        <div class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm"><p class="text-xs text-slate-500">Сегодня</p><p id="today-date" class="text-sm font-semibold text-slate-800"></p></div>
+      </header>
+
+      <section id="panel-checkout" class="tab-panel">
+        <div class="grid items-start gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(360px,.75fr)]">
+          <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft sm:p-6">
+            <div class="mb-5 flex flex-wrap items-center justify-between gap-3"><div><h2 class="text-lg font-bold">Товары</h2><p class="mt-1 text-sm text-slate-500">Выберите позицию, чтобы добавить её в чек</p></div><div class="relative w-full sm:w-64"><span class="absolute left-3 top-2.5 text-slate-400">⌕</span><input id="product-search" type="search" placeholder="Поиск товара..." class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-50"></div></div>
+            <div id="product-grid" class="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3"></div>
+            <div id="empty-products" class="hidden rounded-xl border border-dashed border-slate-300 px-5 py-12 text-center"><div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-xl">▤</div><p class="font-semibold">Каталог пока пуст</p><p class="mt-1 text-sm text-slate-500">Добавьте товары в разделе «Каталог».</p><button data-go="catalog" class="mt-4 rounded-lg bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100">Открыть каталог</button></div>
+          </div>
+
+          <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft xl:sticky xl:top-6">
+            <div class="flex items-center justify-between border-b border-slate-100 px-5 py-5"><div><h2 class="text-lg font-bold">Текущий чек</h2><p id="cart-count-label" class="mt-1 text-sm text-slate-500">0 позиций</p></div><button id="clear-cart" class="rounded-lg px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100 hover:text-rose-600">Очистить</button></div>
+            <div id="cart-items" class="scrollbar max-h-[340px] min-h-32 space-y-3 overflow-y-auto p-5"></div>
+            <div id="cart-empty" class="hidden px-5 pb-5 text-center text-sm text-slate-400">Чек пуст. Добавьте товар из каталога.</div>
+            <div class="border-t border-slate-100 bg-slate-50/70 p-5">
+              <div class="mb-4 flex items-center justify-between text-sm"><span class="text-slate-500">Промежуточный итог</span><span id="subtotal" class="font-semibold">0 ₸</span></div>
+              <div class="mb-5 flex items-end justify-between"><span class="font-semibold">К оплате</span><span id="total" class="text-3xl font-extrabold tracking-tight text-slate-900">0 ₸</span></div>
+              <label for="cash-received" class="mb-2 block text-sm font-semibold">Внесено клиентом</label>
+              <div class="relative"><input id="cash-received" type="number" min="0" step="1" inputmode="decimal" placeholder="0" class="w-full rounded-xl border border-slate-200 bg-white py-3 pl-4 pr-14 text-lg font-semibold outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-50"><span class="absolute right-4 top-3.5 text-sm text-slate-400">₸</span></div>
+              <div class="mt-3 flex items-center justify-between rounded-xl bg-emerald-50 px-4 py-3"><span class="text-sm font-medium text-emerald-800">Сдача</span><span id="change" class="font-bold text-emerald-700">0 ₸</span></div>
+              <p id="payment-error" class="mt-3 hidden text-sm font-medium text-rose-600"></p>
+              <button id="complete-sale" class="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3.5 font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 active:scale-[.99] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"><span>Завершить продажу</span><span>→</span></button>
+              <p class="mt-3 text-center text-xs text-slate-400">Оплата наличными • чек № создаётся автоматически</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="panel-catalog" class="tab-panel hidden">
+        <div class="grid items-start gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
+          <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft sm:p-6"><div class="mb-5"><h2 id="form-title" class="text-lg font-bold">Новый товар</h2><p class="mt-1 text-sm text-slate-500">Заполните данные товара</p></div>
+            <form id="product-form" class="space-y-4" novalidate>
+              <input id="product-id" type="hidden">
+              <div><label for="product-name" class="mb-1.5 block text-sm font-semibold">Название</label><input id="product-name" required maxlength="100" placeholder="Например, Кофе американо" class="w-full rounded-xl border border-slate-200 px-3.5 py-3 text-sm outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"></div>
+              <div class="grid grid-cols-2 gap-3"><div><label for="product-price" class="mb-1.5 block text-sm font-semibold">Цена, ₸</label><input id="product-price" type="number" min="0.01" step="0.01" required placeholder="0" class="w-full rounded-xl border border-slate-200 px-3.5 py-3 text-sm outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"></div><div><label for="product-stock" class="mb-1.5 block text-sm font-semibold">На складе</label><input id="product-stock" type="number" min="0" step="1" required placeholder="0" class="w-full rounded-xl border border-slate-200 px-3.5 py-3 text-sm outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"></div></div>
+              <div><label for="product-sku" class="mb-1.5 block text-sm font-semibold">Артикул / штрихкод</label><input id="product-sku" maxlength="60" placeholder="Необязательно" class="w-full rounded-xl border border-slate-200 px-3.5 py-3 text-sm outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"></div>
+              <p id="form-error" class="hidden text-sm font-medium text-rose-600"></p>
+              <div class="flex gap-2 pt-1"><button id="save-product" type="submit" class="flex-1 rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-700">Добавить товар</button><button id="cancel-edit" type="button" class="hidden rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold hover:bg-slate-50">Отмена</button></div>
+            </form>
+          </div>
+          <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft"><div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-5"><div><h2 class="text-lg font-bold">Список товаров</h2><p id="catalog-count" class="mt-1 text-sm text-slate-500">0 товаров</p></div><div class="relative w-full sm:w-60"><span class="absolute left-3 top-2.5 text-slate-400">⌕</span><input id="catalog-search" type="search" placeholder="Найти в каталоге..." class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-blue-400 focus:bg-white"></div></div>
+            <div class="scrollbar overflow-x-auto"><table class="w-full min-w-[700px] text-left text-sm"><thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th class="px-5 py-3.5 font-semibold">Товар</th><th class="px-5 py-3.5 font-semibold">Артикул</th><th class="px-5 py-3.5 font-semibold">Цена</th><th class="px-5 py-3.5 font-semibold">Остаток</th><th class="px-5 py-3.5 text-right font-semibold">Действия</th></tr></thead><tbody id="catalog-rows" class="divide-y divide-slate-100"></tbody></table></div>
+            <div id="catalog-empty" class="hidden px-5 py-12 text-center text-sm text-slate-400">Товаров пока нет. Добавьте первую позицию с помощью формы.</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="panel-history" class="tab-panel hidden">
+        <div class="mb-6 grid gap-4 sm:grid-cols-2"><div class="rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 p-6 text-white shadow-lg shadow-blue-600/15"><p class="text-sm font-medium text-blue-100">Выручка за сессию</p><p id="session-revenue" class="mt-3 text-3xl font-extrabold">0 ₸</p><p class="mt-2 text-sm text-blue-100">Сумма завершённых продаж</p></div><div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft"><p class="text-sm font-medium text-slate-500">Продаж за сессию</p><p id="session-sales-count" class="mt-3 text-3xl font-extrabold text-slate-900">0</p><p class="mt-2 text-sm text-slate-500">История хранится в этом браузере</p></div></div>
+        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft"><div class="border-b border-slate-100 px-5 py-5"><h2 class="text-lg font-bold">История продаж</h2><p class="mt-1 text-sm text-slate-500">Список завершённых чеков</p></div><div id="sales-list" class="divide-y divide-slate-100"></div><div id="sales-empty" class="hidden px-5 py-16 text-center"><div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-xl">◷</div><p class="font-semibold">Продаж пока нет</p><p class="mt-1 text-sm text-slate-500">Завершённые чеки появятся здесь.</p></div></div>
+      </section>
+      <footer class="mt-8 text-center text-xs text-slate-400">Локальная POS-система • изменения автоматически сохраняются в этом браузере</footer>
+    </main>
+  </div>
+  <div id="toast" class="pointer-events-none fixed bottom-5 right-5 z-50 translate-y-4 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white opacity-0 shadow-xl transition"></div>
+
+  <script>
+    (() => {
+      'use strict';
+      const STORAGE_PRODUCTS = 'simple-pos-products-v1';
+      const STORAGE_SALES = 'simple-pos-sales-v1';
+      const APP_TIME_ZONE = 'Asia/Aqtau';
+      const currency = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 });
+      const money = value => `${currency.format(Number(value) || 0)} ₸`;
+      const dateFormatter = new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium', timeStyle: 'short', timeZone: APP_TIME_ZONE });
+      const $ = id => document.getElementById(id);
+      const safeRead = (key, fallback) => {
+        try { const parsed = JSON.parse(localStorage.getItem(key)); return Array.isArray(parsed) ? parsed : fallback; }
+        catch (error) { console.warn(`Не удалось прочитать ${key}`, error); return fallback; }
+      };
+      let products = safeRead(STORAGE_PRODUCTS, []);
+      let sales = safeRead(STORAGE_SALES, []);
+      let cart = new Map();
+      let toastTimer;
+      const saveProducts = () => localStorage.setItem(STORAGE_PRODUCTS, JSON.stringify(products));
+      const saveSales = () => localStorage.setItem(STORAGE_SALES, JSON.stringify(sales));
+      const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
+      const plural = (count, forms) => { const n = Math.abs(count) % 100, last = n % 10; if (n > 10 && n < 20) return forms[2]; if (last > 1 && last < 5) return forms[1]; if (last === 1) return forms[0]; return forms[2]; };
+      const notify = message => { const toast = $('toast'); toast.textContent = message; toast.classList.remove('translate-y-4', 'opacity-0'); clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.add('translate-y-4', 'opacity-0'), 2600); };
+      const cartLines = () => Array.from(cart.entries()).map(([id, quantity]) => ({ product: products.find(item => item.id === id), quantity })).filter(line => line.product);
+      const cartTotal = () => cartLines().reduce((sum, line) => sum + Number(line.product.price) * line.quantity, 0);
+
+      function switchTab(tab) {
+        document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.toggle('hidden', panel.id !== `panel-${tab}`));
+        document.querySelectorAll('.nav-button').forEach(button => {
+          const active = button.dataset.tab === tab;
+          button.className = `nav-button flex items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-semibold transition ${active ? 'bg-blue-600 text-white shadow-lg shadow-blue-950/20' : 'text-slate-400 hover:bg-slate-900 hover:text-white'}`;
+        });
+        const meta = { checkout:['Рабочее место','Касса','Добавляйте товары в чек и завершайте продажу.'], catalog:['Управление','Каталог товаров','Управляйте ассортиментом и складскими остатками.'], history:['Отчеты','История продаж','Отслеживайте завершённые чеки и выручку.'] }[tab];
+        $('page-eyebrow').textContent = meta[0]; $('page-title').textContent = meta[1]; $('page-description').textContent = meta[2];
+        if (tab === 'checkout') renderProducts();
+        if (tab === 'catalog') renderCatalog();
+        if (tab === 'history') renderHistory();
+      }
+
+      function renderProducts() {
+        const query = $('product-search').value.trim().toLowerCase();
+        const filtered = products.filter(product => `${product.name} ${product.sku || ''}`.toLowerCase().includes(query));
+        $('empty-products').classList.toggle('hidden', products.length > 0);
+        $('product-grid').innerHTML = filtered.map(product => {
+          const out = Number(product.stock) <= 0;
+          return `<article class="rounded-xl border border-slate-200 p-4 transition hover:border-blue-200 hover:shadow-md ${out ? 'opacity-60' : ''}"><div class="flex items-start justify-between gap-3"><div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 font-bold text-blue-600">${escapeHtml((product.name || '?').trim().slice(0,1).toUpperCase())}</div><span class="rounded-full px-2.5 py-1 text-xs font-semibold ${out ? 'bg-rose-50 text-rose-600' : Number(product.stock) <= 5 ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}">${out ? 'Нет в наличии' : `Остаток: ${Number(product.stock)}`}</span></div><h3 class="mt-4 truncate font-semibold" title="${escapeHtml(product.name)}">${escapeHtml(product.name)}</h3><p class="mt-1 truncate text-xs text-slate-400">${escapeHtml(product.sku || 'Без артикула')}</p><div class="mt-4 flex items-center justify-between gap-2"><span class="font-bold text-slate-900">${money(product.price)}</span><button data-add="${escapeHtml(product.id)}" ${out ? 'disabled' : ''} class="rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 transition hover:bg-blue-600 hover:text-white disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400">Добавить</button></div></article>`;
+        }).join('');
+        if (products.length && filtered.length === 0) $('product-grid').innerHTML = '<div class="col-span-full py-10 text-center text-sm text-slate-400">Ничего не найдено.</div>';
+        $('product-grid').querySelectorAll('[data-add]').forEach(button => button.addEventListener('click', () => addToCart(button.dataset.add)));
+      }
+
+      function addToCart(id) {
+        const product = products.find(item => item.id === id);
+        if (!product || Number(product.stock) < 1) return;
+        const quantity = cart.get(id) || 0;
+        if (quantity >= Number(product.stock)) { notify('В чеке уже указано всё доступное количество.'); return; }
+        cart.set(id, quantity + 1); renderCart();
+      }
+
+      function renderCart() {
+        const lines = cartLines();
+        $('cart-items').innerHTML = lines.map(({ product, quantity }) => `<div class="flex items-center gap-3"><div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-sm font-bold text-slate-500">${escapeHtml((product.name || '?').trim().slice(0,1).toUpperCase())}</div><div class="min-w-0 flex-1"><p class="truncate text-sm font-semibold">${escapeHtml(product.name)}</p><p class="mt-0.5 text-xs text-slate-500">${money(product.price)} / шт.</p></div><div class="flex items-center rounded-lg border border-slate-200"><button data-cart-action="minus" data-id="${escapeHtml(product.id)}" aria-label="Уменьшить количество" class="px-2 py-1.5 text-slate-500 hover:text-blue-600">−</button><span class="min-w-6 text-center text-xs font-bold">${quantity}</span><button data-cart-action="plus" data-id="${escapeHtml(product.id)}" aria-label="Увеличить количество" class="px-2 py-1.5 text-slate-500 hover:text-blue-600">+</button></div><div class="w-20 text-right"><p class="text-sm font-bold">${money(Number(product.price)*quantity)}</p><button data-cart-action="remove" data-id="${escapeHtml(product.id)}" class="mt-1 text-xs text-slate-400 hover:text-rose-600">Удалить</button></div></div>`).join('');
+        $('cart-empty').classList.toggle('hidden', lines.length > 0);
+        const quantity = lines.reduce((sum, line) => sum + line.quantity, 0);
+        $('cart-count-label').textContent = `${quantity} ${plural(quantity, ['товар','товара','товаров'])}`;
+        $('subtotal').textContent = money(cartTotal()); $('total').textContent = money(cartTotal());
+        $('complete-sale').disabled = lines.length === 0;
+        $('cart-items').querySelectorAll('[data-cart-action]').forEach(button => button.addEventListener('click', () => updateCart(button.dataset.id, button.dataset.cartAction)));
+        calculateChange();
+      }
+
+      function updateCart(id, action) {
+        const product = products.find(item => item.id === id); const quantity = cart.get(id) || 0;
+        if (action === 'remove' || (action === 'minus' && quantity <= 1)) cart.delete(id);
+        else if (action === 'minus') cart.set(id, quantity - 1);
+        else if (action === 'plus' && product && quantity < Number(product.stock)) cart.set(id, quantity + 1);
+        else if (action === 'plus') notify('Достигнут доступный остаток товара.');
+        renderCart();
+      }
+
+      function calculateChange() {
+        const total = cartTotal(); const received = Number($('cash-received').value) || 0;
+        $('change').textContent = money(Math.max(0, received - total));
+        const error = $('payment-error'); error.classList.add('hidden');
+        if (received > 0 && received < total) { error.textContent = `Не хватает ${money(total - received)}.`; error.classList.remove('hidden'); }
+      }
+
+      function renderCatalog() {
+        const query = $('catalog-search').value.trim().toLowerCase();
+        const filtered = products.filter(product => `${product.name} ${product.sku || ''}`.toLowerCase().includes(query));
+        $('catalog-count').textContent = `${products.length} ${plural(products.length, ['товар','товара','товаров'])}`;
+        $('catalog-empty').classList.toggle('hidden', products.length > 0);
+        $('catalog-rows').innerHTML = filtered.map(product => `<tr class="hover:bg-slate-50/70"><td class="px-5 py-4"><div class="font-semibold text-slate-800">${escapeHtml(product.name)}</div><div class="mt-1 text-xs text-slate-400">Добавлен в каталог</div></td><td class="px-5 py-4 text-slate-500">${escapeHtml(product.sku || '—')}</td><td class="px-5 py-4 font-semibold">${money(product.price)}</td><td class="px-5 py-4"><span class="rounded-full px-2.5 py-1 text-xs font-semibold ${Number(product.stock) <= 0 ? 'bg-rose-50 text-rose-600' : Number(product.stock) <= 5 ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}">${Number(product.stock)} шт.</span></td><td class="px-5 py-4"><div class="flex justify-end gap-2"><button data-edit="${escapeHtml(product.id)}" class="rounded-lg px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-50">Изменить</button><button data-delete="${escapeHtml(product.id)}" class="rounded-lg px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50">Удалить</button></div></td></tr>`).join('');
+        if (products.length && filtered.length === 0) $('catalog-rows').innerHTML = '<tr><td colspan="5" class="px-5 py-10 text-center text-sm text-slate-400">По вашему запросу товары не найдены.</td></tr>';
+        $('catalog-rows').querySelectorAll('[data-edit]').forEach(button => button.addEventListener('click', () => beginEdit(button.dataset.edit)));
+        $('catalog-rows').querySelectorAll('[data-delete]').forEach(button => button.addEventListener('click', () => deleteProduct(button.dataset.delete)));
+      }
+
+      function resetForm() { $('product-form').reset(); $('product-id').value = ''; $('form-title').textContent = 'Новый товар'; $('save-product').textContent = 'Добавить товар'; $('cancel-edit').classList.add('hidden'); $('form-error').classList.add('hidden'); }
+      function beginEdit(id) {
+        const product = products.find(item => item.id === id); if (!product) return;
+        $('product-id').value = id; $('product-name').value = product.name; $('product-price').value = product.price; $('product-stock').value = product.stock; $('product-sku').value = product.sku || '';
+        $('form-title').textContent = 'Редактировать товар'; $('save-product').textContent = 'Сохранить изменения'; $('cancel-edit').classList.remove('hidden'); window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      function deleteProduct(id) {
+        const product = products.find(item => item.id === id); if (!product) return;
+        if (!window.confirm(`Удалить товар «${product.name}»?`)) return;
+        products = products.filter(item => item.id !== id); cart.delete(id); saveProducts(); renderCatalog(); renderCart(); renderProducts(); notify('Товар удалён.');
+      }
+
+      $('product-form').addEventListener('submit', event => {
+        event.preventDefault();
+        const id = $('product-id').value; const name = $('product-name').value.trim(); const price = Number($('product-price').value); const stock = Number($('product-stock').value); const sku = $('product-sku').value.trim();
+        const error = $('form-error'); error.classList.add('hidden');
+        if (!name || !Number.isFinite(price) || price <= 0 || !Number.isInteger(stock) || stock < 0) { error.textContent = 'Введите название, цену больше нуля и целое количество на складе (0 или больше).'; error.classList.remove('hidden'); return; }
+        if (sku && products.some(item => item.sku && item.sku.toLowerCase() === sku.toLowerCase() && item.id !== id)) { error.textContent = 'Такой артикул или штрихкод уже есть в каталоге.'; error.classList.remove('hidden'); return; }
+        if (id) {
+          const product = products.find(item => item.id === id); if (product) { product.name = name; product.price = price; product.stock = stock; product.sku = sku; }
+          notify('Изменения товара сохранены.');
+        } else {
+          products.unshift({ id: (crypto.randomUUID ? crypto.randomUUID() : `p-${Date.now()}-${Math.random().toString(16).slice(2)}`), name, price, stock, sku });
+          notify('Товар добавлен в каталог.');
+        }
+        saveProducts(); resetForm(); renderCatalog(); renderProducts(); renderCart();
+      });
+
+      function completeSale() {
+        const lines = cartLines(); const total = cartTotal(); const received = Number($('cash-received').value) || 0;
+        if (!lines.length) return;
+        if (received < total) { $('payment-error').textContent = `Для завершения продажи внесите не менее ${money(total)}.`; $('payment-error').classList.remove('hidden'); $('cash-received').focus(); return; }
+        const unavailable = lines.find(line => !line.product || Number(line.product.stock) < line.quantity);
+        if (unavailable) { notify(`Недостаточно товара «${unavailable.product?.name || ''}» на складе.`); renderCart(); renderProducts(); return; }
+        const now = new Date();
+        const sale = { id: (crypto.randomUUID ? crypto.randomUUID() : `s-${Date.now()}`), number: String(Date.now()).slice(-8), date: now.toISOString(), items: lines.map(({ product, quantity }) => ({ productId: product.id, name: product.name, price: Number(product.price), quantity, sum: Number(product.price) * quantity })), total, received, change: received - total };
+        lines.forEach(({ product, quantity }) => { product.stock = Number(product.stock) - quantity; });
+        sales.unshift(sale); saveProducts(); saveSales(); cart.clear(); $('cash-received').value = ''; renderCart(); renderProducts(); renderCatalog(); renderHistory(); notify(`Продажа №${sale.number} завершена.`);
+      }
+
+      function renderHistory() {
+        const revenue = sales.reduce((sum, sale) => sum + Number(sale.total || 0), 0);
+        $('session-revenue').textContent = money(revenue); $('session-sales-count').textContent = sales.length;
+        $('sales-empty').classList.toggle('hidden', sales.length > 0);
+        $('sales-list').innerHTML = sales.map(sale => {
+          const items = Array.isArray(sale.items) ? sale.items : [];
+          return `<article class="p-5 sm:p-6"><div class="flex flex-wrap items-start justify-between gap-3"><div><div class="flex flex-wrap items-center gap-2"><h3 class="font-bold">Чек №${escapeHtml(sale.number || String(sale.id).slice(-8))}</h3><span class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">Завершён</span></div><p class="mt-1 text-sm text-slate-500">${escapeHtml(dateFormatter.format(new Date(sale.date)))}</p></div><p class="text-xl font-extrabold">${money(sale.total)}</p></div><div class="mt-4 grid gap-x-8 gap-y-2 rounded-xl bg-slate-50 p-4 sm:grid-cols-2">${items.map(item => `<div class="flex justify-between gap-3 text-sm"><span class="truncate text-slate-600">${escapeHtml(item.name)} <span class="text-slate-400">× ${Number(item.quantity)}</span></span><span class="shrink-0 font-medium">${money(item.sum ?? Number(item.price)*Number(item.quantity))}</span></div>`).join('')}</div><div class="mt-3 flex flex-wrap justify-end gap-x-5 gap-y-1 text-xs text-slate-500"><span>Внесено: ${money(sale.received)}</span><span>Сдача: ${money(sale.change)}</span></div></article>`;
+        }).join('');
+      }
+
+      document.querySelectorAll('.nav-button').forEach(button => button.addEventListener('click', () => switchTab(button.dataset.tab)));
+      document.querySelectorAll('[data-go]').forEach(button => button.addEventListener('click', () => switchTab(button.dataset.go)));
+      $('product-search').addEventListener('input', renderProducts);
+      $('catalog-search').addEventListener('input', renderCatalog);
+      $('cash-received').addEventListener('input', calculateChange);
+      $('complete-sale').addEventListener('click', completeSale);
+      $('clear-cart').addEventListener('click', () => { if (!cart.size) return; cart.clear(); $('cash-received').value = ''; renderCart(); });
+      $('cancel-edit').addEventListener('click', resetForm);
+      $('today-date').textContent = new Intl.DateTimeFormat('ru-RU', { dateStyle: 'full', timeZone: APP_TIME_ZONE }).format(new Date());
+      renderCart(); renderProducts(); renderCatalog(); renderHistory(); switchTab('checkout');
+    })();
+  </script>
+</body>
+</html>
